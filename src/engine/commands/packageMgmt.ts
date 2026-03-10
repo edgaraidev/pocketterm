@@ -3,7 +3,7 @@ import { sleep } from './types';
 
 type PackageMeta = { version: string; repo: 'baseos' | 'appstream' | 'epel' | 'extras'; desc: string; size: string; arch: 'x86_64' };
 
-const AVAILABLE_PACKAGES: Record<string, PackageMeta> = {
+export const AVAILABLE_PACKAGES: Record<string, PackageMeta> = {
   // baseos
   tar:                 { version: '2:1.34-7.el9',       repo: 'baseos',    desc: 'GNU file archiving program', size: '1.5 M', arch: 'x86_64' },
   wget:                { version: '1.21.1-7.el9',       repo: 'baseos',    desc: 'A network utility to retrieve files from the web', size: '1.2 M', arch: 'x86_64' },
@@ -31,6 +31,35 @@ const AVAILABLE_PACKAGES: Record<string, PackageMeta> = {
   neofetch:            { version: '7.1.0-6.el9',        repo: 'epel',      desc: 'CLI system information tool written in BASH', size: '97 k', arch: 'x86_64' },
   jq:                  { version: '1.6-16.el9',         repo: 'epel',      desc: 'Command-line JSON processor', size: '181 k', arch: 'x86_64' },
   ncdu:                { version: '1.16-3.el9',         repo: 'epel',      desc: 'NCurses Disk Usage', size: '54 k', arch: 'x86_64' },
+};
+
+/**
+ * Contract map for package->command coverage.
+ * If a package is listed here, at least one mapped command must exist in the
+ * registry so "dnf install <pkg>" has a coherent user-facing outcome.
+ */
+export const PACKAGE_COMMAND_MAP: Record<string, string[]> = {
+  tar: ['tar'],
+  wget: ['wget'],
+  curl: ['curl'],
+  vim: ['vim', 'vi'],
+  nano: ['nano'],
+  'net-tools': ['ifconfig'],
+  'bind-utils': ['dig'],
+  'openssh-clients': ['ssh', 'scp'],
+  unzip: ['unzip'],
+  tree: ['tree'],
+  git: ['git'],
+  nginx: ['nginx'],
+  tmux: ['tmux'],
+  gcc: ['gcc'],
+  make: ['make'],
+  python3: ['python3'],
+  htop: ['htop'],
+  fastfetch: ['fastfetch'],
+  neofetch: ['neofetch'],
+  jq: ['jq'],
+  ncdu: ['ncdu'],
 };
 
 const dnf: CommandDefinition = {

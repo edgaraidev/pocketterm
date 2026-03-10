@@ -2,6 +2,13 @@ import type { CommandDefinition, CommandContext } from './types';
 import { sleep } from './types';
 import { formatUptime, getDeviceMemoryGB, getCPUCores, dynamicMemKB, detectAppleSilicon } from './systemOps';
 
+function extractStdin(args: string[]): { cleanArgs: string[]; stdin: string | null } {
+  const stdinArg = args.find((a) => a.startsWith('__stdin__:'));
+  const cleanArgs = args.filter((a) => !a.startsWith('__stdin__:'));
+  const stdin = stdinArg ? stdinArg.slice('__stdin__:'.length) : null;
+  return { cleanArgs, stdin };
+}
+
 function walkTreeLines(
   ctx: CommandContext,
   dirPath: string,
@@ -467,4 +474,434 @@ SEE ALSO
        uname(1), lscpu(1), free(1)`,
 };
 
-export const lockedCommands: CommandDefinition[] = [tree, htop, wget, unzip, ifconfig, dig, fastfetch];
+const git: CommandDefinition = {
+  name: 'git',
+  requiresPackage: 'git',
+  async execute(args, ctx) {
+    const sub = args[0];
+    const repoPath = ctx.fs.resolvePath(ctx.cwd, '.git');
+    const isRepo = !!ctx.fs.getNode(repoPath);
+
+    if (!sub || sub === '--help' || sub === 'help') {
+      ctx.out('usage: git [--version] [--help] <command> [<args>]');
+      ctx.out('');
+      ctx.out('These are common Git commands used in various situations:');
+      ctx.out('   init      Create an empty Git repository');
+      ctx.out('   status    Show the working tree status');
+      ctx.out('   add       Add file contents to the index');
+      ctx.out('   commit    Record changes to the repository');
+      ctx.out('   log       Show commit logs');
+      ctx.out('   branch    List branches');
+      return;
+    }
+
+    if (sub === '--version' || sub === 'version') {
+      ctx.out('git version 2.39.3');
+      return;
+    }
+
+    if (sub === 'init') {
+      if (isRepo) {
+        ctx.out(`Reinitialized existing Git repository in ${ctx.cwd}/.git/`);
+        return;
+      }
+      const ok1 = ctx.fs.mkdir(repoPath, ctx.user, ctx.sudo);
+      const ok2 = ctx.fs.mkdir(`${repoPath}/objects`, ctx.user, ctx.sudo);
+      const ok3 = ctx.fs.mkdir(`${repoPath}/refs`, ctx.user, ctx.sudo);
+      const ok4 = ctx.fs.mkdir(`${repoPath}/refs/heads`, ctx.user, ctx.sudo);
+      const ok5 = ctx.fs.writeFile(`${repoPath}/HEAD`, 'ref: refs/heads/main\n', ctx.user, ctx.sudo);
+      if (!(ok1 && ok2 && ok3 && ok4 && ok5)) {
+        ctx.out('fatal: could not create .git directory');
+        ctx.setExitCode(128);
+        return;
+      }
+      ctx.out(`Initialized empty Git repository in ${ctx.cwd}/.git/`);
+      return;
+    }
+
+    if (!isRepo) {
+      ctx.out('fatal: not a git repository (or any of the parent directories): .git');
+      ctx.setExitCode(128);
+      return;
+    }
+
+    switch (sub) {
+      case 'status':
+        ctx.out('On branch main');
+        ctx.out('nothing to commit, working tree clean');
+        return;
+      case 'branch':
+        ctx.out('* main');
+        return;
+      case 'log':
+        ctx.out('commit 4f3e2d1 (HEAD -> main)');
+        ctx.out(`Author: ${ctx.user} <${ctx.user}@pocket-term.local>`);
+        ctx.out('Date:   Thu Feb 26 12:00:00 2026 -0500');
+        ctx.out('');
+        ctx.out('    Initial commit (simulated)');
+        return;
+      case 'add':
+        if (!args[1]) {
+          ctx.out('Nothing specified, nothing added.');
+          ctx.out("hint: Maybe you wanted to say 'git add .'?");
+          ctx.setExitCode(1);
+          return;
+        }
+        return;
+      case 'commit': {
+        const mIdx = args.indexOf('-m');
+        const msg = mIdx >= 0 ? args[mIdx + 1] : null;
+        if (!msg) {
+          ctx.out('error: switch `m\' requires a value');
+          ctx.setExitCode(129);
+          return;
+        }
+        ctx.out('[main 9c2f1b7] ' + msg);
+        ctx.out(' 1 file changed, 1 insertion(+)');
+        return;
+      }
+      default:
+        ctx.out(`git: '${sub}' is not a git command. See 'git --help'.`);
+        ctx.setExitCode(1);
+    }
+  },
+  man: `GIT(1)                        User Commands                       GIT(1)
+
+NAME
+       git - the stupid content tracker
+
+SYNOPSIS
+       git [--version] [--help] <command> [<args>]
+
+DESCRIPTION
+       Git is a distributed version control system. In this simulation, core
+       workflows are supported: init, status, add, commit, log, and branch.
+
+       This command requires installation: dnf install git
+
+EXAMPLES
+       git init
+       git status
+       git add .
+       git commit -m "message"
+
+SEE ALSO
+       dnf(8), man(1)`,
+};
+
+const nginxCmd: CommandDefinition = {
+  name: 'nginx',
+  requiresPackage: 'nginx',
+  async execute(args, ctx) {
+    if (args.includes('-v') || args.includes('-V') || args.includes('--version')) {
+      ctx.out('nginx version: nginx/1.20.1');
+      return;
+    }
+    if (args.includes('-t')) {
+      const conf = '/etc/nginx/nginx.conf';
+      const content = ctx.fs.readFile(conf, ctx.user) ?? ctx.fs.readFile(conf, 'root');
+      if (content === null) {
+        ctx.out(`nginx: [emerg] open() "${conf}" failed (2: No such file or directory)`);
+        ctx.out('nginx: configuration file /etc/nginx/nginx.conf test failed');
+        ctx.setExitCode(1);
+        return;
+      }
+      ctx.out('nginx: the configuration file /etc/nginx/nginx.conf syntax is ok');
+      ctx.out('nginx: configuration file /etc/nginx/nginx.conf test is successful');
+      return;
+    }
+    if (args.length > 0) {
+      ctx.out(`nginx: invalid option: "${args[0]}"`);
+      ctx.out('usage: nginx [-?hvVtTq] [-s signal] [-p prefix] [-e filename] [-c filename] [-g directives]');
+      ctx.setExitCode(1);
+      return;
+    }
+    ctx.out('nginx: [notice] start worker process 1234');
+    ctx.out('nginx: [notice] start worker process 1235');
+    ctx.out('Hint: service lifecycle is managed with systemctl in this simulation.');
+  },
+  man: `NGINX(8)                    System Manager's Manual           NGINX(8)
+
+NAME
+       nginx - high performance web server and reverse proxy
+
+SYNOPSIS
+       nginx [-?hvVtTq] [-s signal] [-p prefix] [-e filename] [-c filename] [-g directives]
+
+DESCRIPTION
+       nginx is an HTTP and reverse proxy server. In this simulation, core
+       utility flags are supported:
+
+       -v, -V      Show version information.
+       -t          Test configuration syntax.
+
+       This command requires installation: dnf install nginx
+
+EXAMPLES
+       nginx -v
+       nginx -t
+       systemctl status nginx
+`,
+};
+
+const tmux: CommandDefinition = {
+  name: 'tmux',
+  requiresPackage: 'tmux',
+  async execute(args, ctx) {
+    if (args[0] === '-V' || args[0] === '--version') {
+      ctx.out('tmux 3.2a');
+      return;
+    }
+    ctx.out('open terminal failed: not a terminal');
+    ctx.out('tmux in browser mode is limited in this simulation.');
+    ctx.setExitCode(1);
+  },
+  man: `TMUX(1)                       User Commands                      TMUX(1)
+
+NAME
+       tmux - terminal multiplexer
+
+SYNOPSIS
+       tmux [command [flags]]
+
+DESCRIPTION
+       tmux lets you create and manage terminal sessions, windows, and panes.
+       In this simulation, tmux command surface is minimal.
+
+       This command requires installation: dnf install tmux
+`,
+};
+
+const gcc: CommandDefinition = {
+  name: 'gcc',
+  requiresPackage: 'gcc',
+  async execute(args, ctx) {
+    if (args.includes('--version') || args.includes('-v')) {
+      ctx.out('gcc (GCC) 11.4.1 20230605 (Rocky Linux 11.4.1-2.1.el9)');
+      return;
+    }
+    const src = args.find((a) => a.endsWith('.c') || a.endsWith('.cc') || a.endsWith('.cpp'));
+    if (!src) {
+      ctx.out('gcc: fatal error: no input files');
+      ctx.out('compilation terminated.');
+      ctx.setExitCode(1);
+      return;
+    }
+    const srcPath = ctx.fs.resolvePath(ctx.cwd, src);
+    const content = ctx.fs.readFile(srcPath, ctx.user);
+    if (content === null) {
+      ctx.out(`gcc: error: ${src}: No such file or directory`);
+      ctx.setExitCode(1);
+      return;
+    }
+    const outIdx = args.indexOf('-o');
+    const outName = outIdx >= 0 && args[outIdx + 1] ? args[outIdx + 1] : 'a.out';
+    const outPath = ctx.fs.resolvePath(ctx.cwd, outName);
+    const ok = ctx.fs.writeFile(outPath, '#!/bin/sh\necho "hello from mock binary"\n', ctx.user, ctx.sudo);
+    if (!ok) {
+      ctx.out(`gcc: error: cannot write output file ${outName}`);
+      ctx.setExitCode(1);
+    }
+  },
+  man: `GCC(1)                        User Commands                       GCC(1)
+
+NAME
+       gcc - GNU project C and C++ compiler
+
+SYNOPSIS
+       gcc [options] file...
+
+DESCRIPTION
+       gcc compiles C/C++ source code. This simulation supports --version and
+       simple compile output generation via -o.
+
+       This command requires installation: dnf install gcc
+`,
+};
+
+const makeCmd: CommandDefinition = {
+  name: 'make',
+  requiresPackage: 'make',
+  async execute(args, ctx) {
+    if (args.includes('--version')) {
+      ctx.out('GNU Make 4.3');
+      return;
+    }
+    const mf = ctx.fs.readFile(ctx.fs.resolvePath(ctx.cwd, 'Makefile'), ctx.user);
+    if (mf === null) {
+      ctx.out("make: *** No targets specified and no makefile found.  Stop.");
+      ctx.setExitCode(2);
+      return;
+    }
+    ctx.out("make: Nothing to be done for 'all'.");
+  },
+  man: `MAKE(1)                       User Commands                      MAKE(1)
+
+NAME
+       make - GNU make utility to maintain groups of programs
+
+SYNOPSIS
+       make [options] [target] ...
+
+DESCRIPTION
+       make executes build recipes defined in a Makefile.
+
+       This command requires installation: dnf install make
+`,
+};
+
+const python3: CommandDefinition = {
+  name: 'python3',
+  requiresPackage: 'python3',
+  async execute(args, ctx) {
+    if (args.includes('--version') || args.includes('-V')) {
+      ctx.out('Python 3.9.18');
+      return;
+    }
+    if (args[0] === '-c' && args[1]) {
+      if (args[1].includes('print(')) {
+        const m = args[1].match(/print\((['"])(.*?)\1\)/);
+        if (m) ctx.out(m[2]);
+      }
+      return;
+    }
+    ctx.out('Python 3.9.18 (main, Nov  8 2023, 00:00:00)');
+    ctx.out('[GCC 11.4.1] on linux');
+    ctx.out("Type \"help\", \"copyright\", \"credits\" or \"license\" for more information.");
+    ctx.out('>>>');
+  },
+  man: `PYTHON3(1)                    User Commands                   PYTHON3(1)
+
+NAME
+       python3 - an interpreted, interactive, object-oriented language
+
+SYNOPSIS
+       python3 [option] ... [-c cmd | -m mod | file | -] [arg] ...
+
+DESCRIPTION
+       Python is a high-level programming language. This simulation supports
+       --version and a lightweight -c print() path.
+
+       This command requires installation: dnf install python3
+`,
+};
+
+const neofetch: CommandDefinition = {
+  name: 'neofetch',
+  requiresPackage: 'neofetch',
+  async execute(_args, ctx) {
+    ctx.out('neofetch has been deprecated upstream.');
+    ctx.out('Tip: install and run fastfetch for better speed.');
+  },
+  man: `NEOFETCH(1)                   User Commands                  NEOFETCH(1)
+
+NAME
+       neofetch - command-line system information tool
+
+DESCRIPTION
+       neofetch displays system information with ASCII art. In this simulation,
+       neofetch is provided as a lightweight compatibility command.
+
+       This command requires installation: dnf install neofetch
+`,
+};
+
+const jq: CommandDefinition = {
+  name: 'jq',
+  requiresPackage: 'jq',
+  async execute(args, ctx) {
+    const { cleanArgs, stdin } = extractStdin(args);
+    const filter = cleanArgs[0];
+    if (!filter) {
+      ctx.out('usage: jq <filter> [file]');
+      ctx.setExitCode(2);
+      return;
+    }
+    const fileArg = cleanArgs[1];
+    let input = stdin;
+    if (!input && fileArg) {
+      input = ctx.fs.readFile(ctx.fs.resolvePath(ctx.cwd, fileArg), ctx.user);
+    }
+    if (!input) {
+      ctx.out('jq: error: no JSON input');
+      ctx.setExitCode(2);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(input);
+      if (filter === '.') {
+        ctx.out(JSON.stringify(parsed, null, 2));
+        return;
+      }
+      const keyMatch = filter.match(/^\.(\w+)$/);
+      if (keyMatch) {
+        const value = (parsed as Record<string, unknown>)[keyMatch[1]];
+        ctx.out(typeof value === 'string' ? value : JSON.stringify(value, null, 2));
+        return;
+      }
+      ctx.out(`jq: error: unsupported filter: ${filter}`);
+      ctx.setExitCode(3);
+    } catch {
+      ctx.out('jq: parse error: Invalid numeric literal at line 1, column 1');
+      ctx.setExitCode(4);
+    }
+  },
+  man: `JQ(1)                         User Commands                        JQ(1)
+
+NAME
+       jq - command-line JSON processor
+
+SYNOPSIS
+       jq <filter> [file]
+
+DESCRIPTION
+       jq slices, filters, and transforms JSON. This simulation supports '.'
+       and simple '.key' filters, plus piped stdin input.
+
+       This command requires installation: dnf install jq
+`,
+};
+
+const ncdu: CommandDefinition = {
+  name: 'ncdu',
+  requiresPackage: 'ncdu',
+  async execute(args, ctx) {
+    const target = args[0] ?? '.';
+    const resolved = ctx.fs.resolvePath(ctx.cwd, target);
+    const node = ctx.fs.getNode(resolved);
+    if (!node || node.type !== 'directory') {
+      ctx.out(`ncdu: ${target}: No such file or directory`);
+      ctx.setExitCode(1);
+      return;
+    }
+    ctx.out('--- ncdu 1.16 ~ Use the arrow keys to navigate ---');
+    const entries = ctx.fs.listDir(resolved, ctx.user);
+    for (const name of entries) {
+      const full = resolved === '/' ? `/${name}` : `${resolved}/${name}`;
+      const n = ctx.fs.getNode(full);
+      if (!n) continue;
+      const size = n.type === 'file' ? Math.max(1, Math.ceil(n.content.length / 1024)) : 4;
+      ctx.out(`${String(size).padStart(6)} KiB  ${name}${n.type === 'directory' ? '/' : ''}`);
+    }
+    ctx.out('Total disk usage: simulated');
+  },
+  man: `NCDU(1)                       User Commands                      NCDU(1)
+
+NAME
+       ncdu - NCurses Disk Usage
+
+SYNOPSIS
+       ncdu [directory]
+
+DESCRIPTION
+       ncdu is a disk usage analyzer with an ncurses interface. This simulation
+       prints a navigable-style listing summary for the target directory.
+
+       This command requires installation: dnf install ncdu
+`,
+};
+
+export const lockedCommands: CommandDefinition[] = [
+  tree, htop, wget, unzip, ifconfig, dig, fastfetch,
+  git, nginxCmd, tmux, gcc, makeCmd, python3, neofetch, jq, ncdu,
+];
