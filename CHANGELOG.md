@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.9.2 - 2026-03-10
+
+### Added
+
+- Package-to-command coverage contract (`PACKAGE_COMMAND_MAP`) and automated parity test to prevent installable-but-unrunnable command drift
+- Install-gated command implementations for key package entries: `git`, `nginx`, `tmux`, `gcc`, `make`, `python3`, `neofetch`, `jq`, and `ncdu`
+- Additional command-level tests for editor routing and curl behavior
+
+### Changed
+
+- `dnf install` unlock flow now has coherent command + `man` availability for newly mapped packages
+- `nano`/`vim`/`vi` routing and command usage parity were refined for simulation fidelity
+
 ## 0.9.1 - 2026-03-10
 
 ### Added
