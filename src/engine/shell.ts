@@ -18,6 +18,7 @@ export type FactoryResetCallback = () => void;
 const INSTALLED_PACKAGES_KEY = 'pocketterm-installed-packages';
 const SERVICES_KEY = 'pocketterm-services';
 const JOURNAL_KEY = 'pocketterm-journal';
+const ENV_VARS_KEY = 'pocketterm-env-vars';
 
 function loadInstalledPackages(): Set<string> {
   try {
@@ -66,6 +67,29 @@ function loadJournalEntries(): string[] | null {
 
 function persistJournalEntries(entries: string[]): boolean {
   const { ok } = safePersist(JOURNAL_KEY, JSON.stringify(entries.slice(-300)));
+  return ok;
+}
+
+function loadEnvVars(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(ENV_VARS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof v === 'string') out[k] = v;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function persistEnvVars(vars: Map<string, string>): boolean {
+  const payload: Record<string, string> = {};
+  for (const [k, v] of vars.entries()) payload[k] = v;
+  const { ok } = safePersist(ENV_VARS_KEY, JSON.stringify(payload));
   return ok;
 }
 
@@ -312,11 +336,14 @@ export class Shell {
     this.bootTime = Date.now();
     this.seedProcessTable();
     this.envVars = new Map<string, string>([
-      ['PATH', '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'],
-      ['SHELL', '/bin/bash'],
+      ['PATH', '/usr/bin:/bin:/usr/local/bin'],
+      ['SHELL', '/usr/bin/bash'],
       ['LANG', 'en_US.UTF-8'],
       ['TERM', 'xterm-256color'],
     ]);
+    for (const [k, v] of Object.entries(loadEnvVars())) {
+      this.envVars.set(k, v);
+    }
     this.services = loadServices() ?? new Map<string, 'active' | 'inactive'>([
       ['sshd', 'active'],
       ['nginx', 'active'],
@@ -344,6 +371,7 @@ export class Shell {
     this.resetTutorialProgress(initialTutorialMode);
     const initialUser = this.localFs.getCurrentUser();
     this.cwd = initialUser === 'root' ? '/root' : `/home/${initialUser}`;
+    this.syncCoreEnv();
     persistServices(this.services);
     persistJournalEntries(this.journalEntries);
   }
@@ -940,7 +968,10 @@ export class Shell {
       lastExitCode: this.lastExitCode,
       setExitCode: (code: number) => { this.pendingExitCodeOverride = code; },
       getEnvVar: (key: string) => this.envVars.get(key),
-      setEnvVar: (key: string, value: string) => { this.envVars.set(key, value); },
+      setEnvVar: (key: string, value: string) => {
+        this.envVars.set(key, value);
+        persistEnvVars(this.envVars);
+      },
       getEnvEntries: () => Array.from(this.envVars.entries()),
       requestReboot: () => this.onReboot(),
       addJournalEntry: (entry: string) => this.addJournalEntry(entry),

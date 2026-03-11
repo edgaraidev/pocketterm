@@ -4,6 +4,7 @@ import { FileSystem } from '../fileSystem';
 import { DEFAULT_TUTORIALS, type TutorialCartridge } from '../tutorials';
 import { exportSystemState, importSystemState } from '../storage';
 import { getManPage } from '../manPages';
+import { ALIASES } from './aliases';
 
 const POCKETTERM_MAN_PAGE = `POCKETTERM(1)                User Commands                POCKETTERM(1)
 
@@ -743,6 +744,109 @@ SEE ALSO
        env(1), bash(1)`,
 };
 
+const alias_cmd: CommandDefinition = {
+  name: 'alias',
+  async execute(args, ctx) {
+    const formatAlias = (name: string, value: { cmd: string; prependArgs: string[] }) => {
+      const rendered = [value.cmd, ...value.prependArgs].join(' ').trim();
+      return `alias ${name}='${rendered}'`;
+    };
+
+    if (args.length === 0) {
+      for (const name of Object.keys(ALIASES).sort()) {
+        ctx.out(formatAlias(name, ALIASES[name]));
+      }
+      return;
+    }
+
+    for (const arg of args) {
+      const eqIdx = arg.indexOf('=');
+      if (eqIdx < 0) {
+        const existing = ALIASES[arg];
+        if (!existing) {
+          ctx.out(`alias: ${arg}: not found`);
+          ctx.setExitCode(1);
+          continue;
+        }
+        ctx.out(formatAlias(arg, existing));
+        continue;
+      }
+
+      const name = arg.slice(0, eqIdx);
+      let value = arg.slice(eqIdx + 1);
+      if (!name) {
+        ctx.out(`alias: \`${arg}\`: invalid alias name`);
+        ctx.setExitCode(1);
+        continue;
+      }
+      if ((value.startsWith('\'') && value.endsWith('\'')) || (value.startsWith('"') && value.endsWith('"'))) {
+        value = value.slice(1, -1);
+      }
+      const tokens = value.trim().split(/\s+/).filter(Boolean);
+      if (tokens.length === 0) {
+        ctx.out(`alias: \`${arg}\`: invalid alias value`);
+        ctx.setExitCode(1);
+        continue;
+      }
+      ALIASES[name] = { cmd: tokens[0], prependArgs: tokens.slice(1) };
+    }
+  },
+  man: `ALIAS(1)                    Builtin Commands                ALIAS(1)
+
+NAME
+       alias - define or display aliases
+
+SYNOPSIS
+       alias [name[=value] ...]
+
+DESCRIPTION
+       alias defines command aliases or displays existing aliases. With no
+       arguments, all aliases are printed. With name=value, define or replace
+       an alias.
+
+EXAMPLES
+       alias
+       alias ll='ls -la'
+       alias gs='git status'
+
+SEE ALSO
+       unalias(1), bash(1)`,
+};
+
+const unalias_cmd: CommandDefinition = {
+  name: 'unalias',
+  async execute(args, ctx) {
+    const name = args[0];
+    if (!name) {
+      ctx.out('unalias: usage: unalias name');
+      ctx.setExitCode(1);
+      return;
+    }
+    if (!(name in ALIASES)) {
+      ctx.out(`unalias: ${name}: not found`);
+      ctx.setExitCode(1);
+      return;
+    }
+    delete ALIASES[name];
+  },
+  man: `UNALIAS(1)                  Builtin Commands              UNALIAS(1)
+
+NAME
+       unalias - remove each NAME from alias definitions
+
+SYNOPSIS
+       unalias name
+
+DESCRIPTION
+       unalias removes a previously defined alias from the current shell.
+
+EXAMPLES
+       unalias ll
+
+SEE ALSO
+       alias(1), bash(1)`,
+};
+
 const source: CommandDefinition = {
   name: 'source',
   async execute(args, ctx) {
@@ -1025,5 +1129,5 @@ SEE ALSO
 };
 
 export const miscCommands: CommandDefinition[] = [
-  man, help, healthcheck, nano, vim, vi, ssh, scp, sudo_cmd, su, exit_cmd, env, export_cmd, source, pocketterm, reboot, snapshot,
+  man, help, healthcheck, nano, vim, vi, ssh, scp, sudo_cmd, su, exit_cmd, env, export_cmd, alias_cmd, unalias_cmd, source, pocketterm, reboot, snapshot,
 ];

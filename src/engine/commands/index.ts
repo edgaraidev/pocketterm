@@ -8,6 +8,7 @@ import { packageMgmtCommands } from './packageMgmt';
 import { miscCommands } from './misc';
 import { lockedCommands } from './lockedCmds';
 import { sysAdminCommands } from './sysAdmin';
+import { ALIASES } from './aliases';
 
 export type { CommandDefinition, CommandContext, SSHSession, ProcessInfo } from './types';
 export { sleep } from './types';
@@ -29,10 +30,4 @@ for (const cmd of allCommands) {
   commandRegistry.set(cmd.name, cmd);
 }
 
-export const ALIASES: Record<string, { cmd: string; prependArgs: string[] }> = {
-  'll': { cmd: 'ls', prependArgs: ['-l'] },
-  'la': { cmd: 'ls', prependArgs: ['-al'] },
-  'vi': { cmd: 'vim', prependArgs: [] },
-  '.': { cmd: 'source', prependArgs: [] },
-  'pt': { cmd: 'pocketterm', prependArgs: [] },
-};
+export { ALIASES };

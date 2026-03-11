@@ -1,4 +1,5 @@
 import type { CommandContext, CommandDefinition } from './types';
+import { ALIASES } from './aliases';
 
 // ── Shared dynamic helpers ──
 
@@ -62,13 +63,16 @@ function fmtKB(kb: number): string {
 }
 
 function resolveCommandPath(commandName: string, ctx: CommandContext): string | null {
-  const aliases: Record<string, string> = { ll: 'ls', la: 'ls', '.': 'source', vi: 'vim' };
-  const resolved = aliases[commandName] ?? commandName;
+  const resolved = ALIASES[commandName]?.cmd ?? commandName;
   const def = ctx.registry.get(resolved);
   if (!def) return null;
   if (def.requiresPackage && !ctx.installedPackages.has(def.requiresPackage)) return null;
   return `/usr/bin/${resolved}`;
 }
+
+const SHELL_BUILTINS = new Set([
+  'cd', 'pwd', 'help', 'man', 'alias', 'unalias', 'export', 'source', '.', 'history', 'exit', 'command', 'type',
+]);
 
 // ── Commands ──
 
@@ -223,6 +227,59 @@ EXAMPLES
 
 SEE ALSO
        which(1), type(1), bash(1)`,
+};
+
+const type_builtin: CommandDefinition = {
+  name: 'type',
+  async execute(args, ctx) {
+    if (args.length === 0) {
+      ctx.out('type: usage: type name [name ...]');
+      ctx.setExitCode(1);
+      return;
+    }
+
+    let allFound = true;
+    for (const name of args) {
+      const alias = ALIASES[name];
+      if (alias) {
+        ctx.out(`${name} is aliased to '${[alias.cmd, ...alias.prependArgs].join(' ')}'`);
+        continue;
+      }
+
+      const def = ctx.registry.get(name);
+      if (def && (!def.requiresPackage || ctx.installedPackages.has(def.requiresPackage))) {
+        if (SHELL_BUILTINS.has(name)) {
+          ctx.out(`${name} is a shell builtin`);
+        } else {
+          ctx.out(`${name} is /usr/bin/${name}`);
+        }
+        continue;
+      }
+
+      allFound = false;
+      ctx.out(`bash: type: ${name}: not found`);
+    }
+    if (!allFound) ctx.setExitCode(1);
+  },
+  man: `TYPE(1)                     Builtin Commands                 TYPE(1)
+
+NAME
+       type - indicate how each name would be interpreted
+
+SYNOPSIS
+       type name [name ...]
+
+DESCRIPTION
+       type reports whether a name is an alias, shell builtin, or executable
+       command in the current shell environment.
+
+EXAMPLES
+       type ll
+       type cd
+       type git
+
+SEE ALSO
+       which(1), command(1), alias(1)`,
 };
 
 const tar: CommandDefinition = {
@@ -915,7 +972,7 @@ SEE ALSO
 };
 
 export const systemOpsCommands: CommandDefinition[] = [
-  uname, whoami, which_cmd, command_builtin, tar, date_cmd, uptime_cmd, top, ps, kill_cmd, free_cmd, lscpu, lsblk, cal, df, history_cmd, clear, reset,
+  uname, whoami, which_cmd, command_builtin, type_builtin, tar, date_cmd, uptime_cmd, top, ps, kill_cmd, free_cmd, lscpu, lsblk, cal, df, history_cmd, clear, reset,
 ];
 
 // ── Exported helpers for fastfetch and other consumers ──

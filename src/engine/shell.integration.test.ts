@@ -72,4 +72,148 @@ describe('shell package path integration', () => {
     expect(commandVOut).toContain('/usr/bin/git');
     expect(shell.getLastExitCode()).toBe(0);
   });
+
+  it('supports env defaults, cd -, alias ll, and permission fidelity', async () => {
+    const outputs: string[] = [];
+    const shell = new Shell(
+      new FileSystem('guest'),
+      new NetworkLogic(),
+      (text) => outputs.push(text),
+      async () => true,
+      async () => null,
+      async () => null,
+      () => {},
+      async () => 'password',
+      () => {},
+      () => {},
+      null,
+    );
+
+    let start = outputs.length;
+    await shell.execute('echo $HOME $USER $SHELL $PATH');
+    const envOut = outputs.slice(start).join('');
+    expect(envOut).toContain('/home/guest guest /usr/bin/bash /usr/bin:/bin:/usr/local/bin');
+
+    start = outputs.length;
+    await shell.execute('ll');
+    const llOut = outputs.slice(start).join('');
+    expect(llOut).toContain('.bashrc');
+
+    start = outputs.length;
+    await shell.execute('type ll');
+    const typeAliasOut = outputs.slice(start).join('');
+    expect(typeAliasOut).toContain("ll is aliased to 'ls -la'");
+
+    start = outputs.length;
+    await shell.execute('type cd');
+    const typeBuiltinOut = outputs.slice(start).join('');
+    expect(typeBuiltinOut).toContain('cd is a shell builtin');
+
+    start = outputs.length;
+    await shell.execute('cd /tmp');
+    await shell.execute('echo $OLDPWD');
+    const oldPwdOut = outputs.slice(start).join('');
+    expect(oldPwdOut).toContain('/home/guest');
+
+    start = outputs.length;
+    await shell.execute('cd -');
+    const cdDashOut = outputs.slice(start).join('');
+    expect(cdDashOut).toContain('/home/guest');
+    expect(shell.getCwd()).toBe('/home/guest');
+
+    await shell.execute('cd ~');
+    expect(shell.getCwd()).toBe('/home/guest');
+
+    start = outputs.length;
+    await shell.execute('ls /root');
+    const lsDeniedOut = outputs.slice(start).join('');
+    expect(lsDeniedOut).toContain('bash: ls: /root: Permission denied');
+
+    start = outputs.length;
+    await shell.execute('cd /root');
+    const cdDeniedOut = outputs.slice(start).join('');
+    expect(cdDeniedOut).toContain('bash: cd: /root: Permission denied');
+
+    start = outputs.length;
+    await shell.execute("alias ll='ls -l'");
+    await shell.execute('type ll');
+    const aliasOverrideOut = outputs.slice(start).join('');
+    expect(aliasOverrideOut).toContain("ll is aliased to 'ls -l'");
+
+    start = outputs.length;
+    await shell.execute('unalias ll');
+    await shell.execute('type ll');
+    const aliasRemovedOut = outputs.slice(start).join('');
+    expect(aliasRemovedOut).toContain('bash: type: ll: not found');
+  });
+
+  it('normalizes repeated slashes and dot-only paths for cd', async () => {
+    const outputs: string[] = [];
+    const shell = new Shell(
+      new FileSystem('guest'),
+      new NetworkLogic(),
+      (text) => outputs.push(text),
+      async () => true,
+      async () => null,
+      async () => null,
+      () => {},
+      async () => 'password',
+      () => {},
+      () => {},
+      null,
+    );
+
+    await shell.execute('cd ///home//guest/');
+    expect(shell.getCwd()).toBe('/home/guest');
+
+    await shell.execute('cd .');
+    expect(shell.getCwd()).toBe('/home/guest');
+
+    await shell.execute('cd ././.');
+    expect(shell.getCwd()).toBe('/home/guest');
+
+    const start = outputs.length;
+    await shell.execute('cat /etc/shells');
+    const shellsOut = outputs.slice(start).join('');
+    expect(shellsOut).toContain('/bin/sh');
+    expect(shellsOut).toContain('/usr/bin/bash');
+    expect(shellsOut).not.toContain('\n ');
+  });
+
+  it('persists exported environment variables across shell recreation', async () => {
+    const outputs: string[] = [];
+    const shell1 = new Shell(
+      new FileSystem('guest'),
+      new NetworkLogic(),
+      (text) => outputs.push(text),
+      async () => true,
+      async () => null,
+      async () => null,
+      () => {},
+      async () => 'password',
+      () => {},
+      () => {},
+      null,
+    );
+    await shell1.execute('export EDITOR=vim');
+
+    const shell2 = new Shell(
+      new FileSystem('guest'),
+      new NetworkLogic(),
+      (text) => outputs.push(text),
+      async () => true,
+      async () => null,
+      async () => null,
+      () => {},
+      async () => 'password',
+      () => {},
+      () => {},
+      null,
+    );
+
+    const start = outputs.length;
+    await shell2.execute('echo $EDITOR');
+    const editorOut = outputs.slice(start).join('');
+    expect(editorOut).toContain('vim');
+  });
 });

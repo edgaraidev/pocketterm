@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file.
 
 
+## 0.10.1 - 2026-03-10
+
+### Changed
+
+- Added `$OLDPWD` tracking with POSIX-style `cd -` behavior (directory swap + printed destination path)
+- Updated `cd` home resolution to use `$HOME` defaults and hardened path normalization handling for repeated slashes and dot-only paths
+- Aligned default shell environment values for navigation parity: `HOME=/home/guest`, `USER=guest`, `SHELL=/usr/bin/bash`, `PATH=/usr/bin:/bin:/usr/local/bin`
+- Updated alias muscle-memory behavior so `ll` maps to `ls -la` by default
+- Standardized `/root` permission-denied error surfaces for both `ls /root` and `cd /root`
+- Added integration coverage for env expansion, alias parity, `cd -`, path normalization, and `/etc/shells` formatting
+
 ## 0.10.0 - 2026-03-10
 
 ### Added

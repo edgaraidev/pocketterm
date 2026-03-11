@@ -40,7 +40,7 @@ const ls: CommandDefinition = {
     const node = ctx.fs.getNode(resolved);
     if (!node) { ctx.out(`ls: cannot access '${target}': No such file or directory`); return; }
     if (node.type === 'directory' && !ctx.fs.canRead(node, ctx.sudo ? 'root' : ctx.user)) {
-      ctx.out(`ls: cannot open directory '${target}': Permission denied`); return;
+      ctx.out(`bash: ls: ${resolved}: Permission denied`); return;
     }
     let list = ctx.fs.listDir(resolved, ctx.sudo ? 'root' : ctx.user);
     if (!showAll) list = list.filter((n) => !n.startsWith('.'));
@@ -97,16 +97,36 @@ SEE ALSO
 const cd: CommandDefinition = {
   name: 'cd',
   async execute(args, ctx) {
-    const home = ctx.user === 'root' ? '/root' : `/home/${ctx.user}`;
-    const target = args[0] ?? home;
+    const fallbackHome = ctx.user === 'root' ? '/root' : `/home/${ctx.user}`;
+    const home = ctx.getEnvVar('HOME') ?? fallbackHome;
+    const previousCwd = ctx.cwd;
+
+    let target = args[0] ?? home;
+    let printNewDirectory = false;
+
+    if (target === '-') {
+      const oldPwd = ctx.getEnvVar('OLDPWD');
+      if (!oldPwd) {
+        ctx.out('bash: cd: OLDPWD not set');
+        ctx.setExitCode(1);
+        return;
+      }
+      target = oldPwd;
+      printNewDirectory = true;
+    } else if (target === '~') {
+      target = home;
+    }
+
     const resolved = ctx.fs.resolvePath(ctx.cwd, target);
     const node = ctx.fs.getNode(resolved);
     if (!node || node.type !== 'directory') {
-      ctx.out(`bash: cd: ${args[0]}: No such file or directory`);
+      ctx.out(`bash: cd: ${target}: No such file or directory`);
     } else if (!ctx.fs.canExecute(node, ctx.sudo ? 'root' : ctx.user)) {
-      ctx.out(`bash: cd: ${target}: Permission denied`);
+      ctx.out(`bash: cd: ${resolved}: Permission denied`);
     } else {
+      ctx.setEnvVar('OLDPWD', previousCwd);
       ctx.setCwd(resolved || '/');
+      if (printNewDirectory) ctx.out(resolved || '/');
     }
   },
   man: `CD(1)                        Builtin Commands                     CD(1)
