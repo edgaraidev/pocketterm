@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { FileSystem } from './fileSystem';
 import { NetworkLogic } from './networkLogic';
 import { Shell } from './shell';
+import { DEFAULT_TUTORIALS } from './tutorials';
 
 class MemoryStorage implements Storage {
   private data = new Map<string, string>();
@@ -488,5 +489,69 @@ describe('shell package path integration', () => {
     setTimeout(() => shell.requestInterrupt(), 50);
     await run;
     expect(shell.getLastExitCode()).toBe(130);
+  });
+
+  it('accepts equivalent tutorial command variants without changing tracks', async () => {
+    const mkShell = () => {
+      const outputs: string[] = [];
+      const shell = new Shell(
+        new FileSystem('guest'),
+        new NetworkLogic(),
+        (text) => outputs.push(text),
+        async () => true,
+        async () => null,
+        async () => null,
+        () => {},
+        async () => 'password',
+        () => {},
+        () => {},
+        null,
+      );
+      return { shell, outputs };
+    };
+
+    {
+      const { shell, outputs } = mkShell();
+      shell.setTutorialMode(DEFAULT_TUTORIALS.find((t) => t.id === 'help') ?? null);
+      await shell.execute('man 1 ls');
+      expect(outputs.join('')).toContain('[TUTORIAL PASS]');
+      expect(shell.getTutorialMode()).toBeNull();
+    }
+
+    {
+      const { shell, outputs } = mkShell();
+      shell.setTutorialMode(DEFAULT_TUTORIALS.find((t) => t.id === 'navigation') ?? null);
+      await shell.execute('cd /var/log/');
+      await shell.execute('ls -al');
+      expect(outputs.join('')).toContain('[TUTORIAL PASS]');
+      expect(shell.getTutorialMode()).toBeNull();
+    }
+
+    {
+      const { shell, outputs } = mkShell();
+      shell.setTutorialMode(DEFAULT_TUTORIALS.find((t) => t.id === 'copying') ?? null);
+      await shell.execute('cd /home/guest');
+      await shell.execute('cp /etc/motd backup.txt');
+      expect(outputs.join('')).toContain('[TUTORIAL PASS]');
+      expect(shell.getTutorialMode()).toBeNull();
+    }
+
+    {
+      const { shell, outputs } = mkShell();
+      shell.setTutorialMode(DEFAULT_TUTORIALS.find((t) => t.id === 'permissions') ?? null);
+      await shell.execute('touch secret.txt');
+      await shell.execute('chmod 600 /home/guest/secret.txt');
+      expect(outputs.join('')).toContain('[TUTORIAL PASS]');
+      expect(shell.getTutorialMode()).toBeNull();
+    }
+
+    {
+      const { shell, outputs } = mkShell();
+      shell.setTutorialMode(DEFAULT_TUTORIALS.find((t) => t.id === 'status') ?? null);
+      await shell.execute('df -hP');
+      await shell.execute('sudo systemctl status sshd.service');
+      expect(outputs.join('')).toContain('[TUTORIAL PASS]');
+      expect(shell.getTutorialMode()).toBeNull();
+    }
   });
 });

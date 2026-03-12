@@ -616,26 +616,27 @@ export class Shell {
     if (!this.tutorialMode || status !== 0) return;
     const cmd = input.trim().replace(/\s+/g, ' ');
     if (!cmd) return;
+    const cmdNoSudo = cmd.replace(/^sudo\s+/, '');
 
     switch (this.tutorialMode.id) {
       case 'help': {
-        if (/^man\s+ls$/i.test(cmd)) {
+        if (/^man(\s+\d+)?\s+ls$/i.test(cmdNoSudo)) {
           this.tutorialProgress.manLs = true;
           this.completeTutorial(this.tutorialMode.title);
         }
         break;
       }
       case 'navigation': {
-        if (/^cd\s+\/var\/log$/i.test(cmd) && this.cwd === '/var/log') {
+        if (/^cd(\s|$)/i.test(cmdNoSudo) && this.cwd === '/var/log') {
           this.tutorialProgress.enteredVarLog = true;
           this.onOutput('\x1b[33m[TUTORIAL] Good. Now run ls -la in /var/log.\x1b[0m\r\n');
           break;
         }
         if (
-          /^ls(\s|$)/i.test(cmd) &&
+          /^ls(\s|$)/i.test(cmdNoSudo) &&
           (
-            /(^|\s)-la(\s|$)/.test(` ${cmd} `) ||
-            /(^|\s)-al(\s|$)/.test(` ${cmd} `)
+            /(^|\s)-la(\s|$)/.test(` ${cmdNoSudo} `) ||
+            /(^|\s)-al(\s|$)/.test(` ${cmdNoSudo} `)
           )
         ) {
           if (this.cwd === '/var/log' && this.tutorialProgress.enteredVarLog) {
@@ -645,7 +646,7 @@ export class Shell {
         break;
       }
       case 'copying': {
-        if (/^cp\s+\/etc\/motd\s+\/home\/guest\/backup\.txt$/i.test(cmd)) {
+        if (/^cp(\s|$)/i.test(cmdNoSudo)) {
           const src = this.fs.readFile('/etc/motd', 'root');
           const dst = this.fs.readFile('/home/guest/backup.txt', 'root');
           if (src !== null && dst !== null && src === dst) {
@@ -656,7 +657,7 @@ export class Shell {
         break;
       }
       case 'permissions': {
-        if (/^chmod\s+600\s+secret\.txt$/i.test(cmd)) {
+        if (/^chmod(\s|$)/i.test(cmdNoSudo)) {
           const path = this.fs.resolvePath(this.cwd, 'secret.txt');
           const node = this.fs.getNode(path);
           if (node && node.type === 'file' && node.permissions === '600') {
@@ -667,13 +668,19 @@ export class Shell {
         break;
       }
       case 'status': {
-        if (/^df(\s+.*)?$/i.test(cmd) && /(^|\s)-h(\s|$)/.test(` ${cmd} `)) {
+        if (
+          /^df(\s+.*)?$/i.test(cmdNoSudo) &&
+          (
+            /(^|\s)-h(\s|$)/.test(` ${cmdNoSudo} `) ||
+            /(^|\s)-[A-Za-z]*h[A-Za-z]*(\s|$)/.test(` ${cmdNoSudo} `)
+          )
+        ) {
           this.tutorialProgress.dfh = true;
           if (!this.tutorialProgress.sshdStatus) {
             this.onOutput('\x1b[33m[TUTORIAL] Nice. Now check sshd with systemctl status sshd.\x1b[0m\r\n');
           }
         }
-        if (/^systemctl\s+status\s+sshd(\.service)?$/i.test(cmd)) {
+        if (/^systemctl\s+status\s+sshd(\.service)?$/i.test(cmdNoSudo)) {
           this.tutorialProgress.sshdStatus = true;
         }
         if (this.tutorialProgress.dfh && this.tutorialProgress.sshdStatus) {

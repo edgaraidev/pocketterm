@@ -3,6 +3,14 @@
 All notable changes to this project are documented in this file.
 
 
+## 0.11.2 - 2026-03-10
+
+### Changed
+
+- Expanded default PocketTerm tutorial instructions with course-ready step sequences, verification hints, and operator-facing context notes
+- Made tutorial completion checks more forgiving for equivalent real-world command forms (for example `man 1 ls`, path-equivalent `cd`, combined `df` flags, and optional `sudo` prefixes) without changing tutorial tracks
+- Added integration coverage to guarantee tutorial variants pass consistently while preserving existing completion outcomes
+
 ## 0.11.1 - 2026-03-10
 
 ### Added
