@@ -3,6 +3,13 @@
 All notable changes to this project are documented in this file.
 
 
+## 0.11.3 - 2026-03-12
+
+### Fixed
+
+- Fixed tutorial launch formatting in xterm by emitting instruction text line-by-line instead of as a single multiline payload, preventing horizontal drift/offset rendering
+- Applied the same line-safe tutorial rendering path both at initial shell boot and when launching tutorials from `pocketterm`
+
 ## 0.11.2 - 2026-03-10
 
 ### Changed

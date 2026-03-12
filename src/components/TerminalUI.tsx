@@ -172,7 +172,9 @@ export function TerminalUI({
         term.writeln(line);
       }
       term.writeln('');
-      term.writeln(`\x1b[1;33m${activeTutorial.instructionBlock}\x1b[0m`);
+      for (const line of activeTutorial.instructionBlock.split('\n')) {
+        term.writeln(`\x1b[1;33m${line}\x1b[0m`);
+      }
       term.writeln('');
     }
     term.write(prompt);

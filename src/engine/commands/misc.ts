@@ -1016,7 +1016,9 @@ const pocketterm: CommandDefinition = {
       ctx.out('');
       const activeTutorial = ctx.getTutorialMode();
       if (activeTutorial) {
-        ctx.out('\x1b[1;33m' + activeTutorial.instructionBlock + '\x1b[0m');
+        for (const line of activeTutorial.instructionBlock.split('\n')) {
+          ctx.out('\x1b[1;33m' + line + '\x1b[0m');
+        }
       }
     }
   },
