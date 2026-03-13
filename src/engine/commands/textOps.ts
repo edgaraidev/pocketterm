@@ -460,7 +460,6 @@ const less: CommandDefinition = {
   name: 'less',
   async execute(args, ctx) {
     const { cleanArgs, stdin } = extractStdin(args);
-    const manPagerMode = cleanArgs.includes('--man-pager');
     const effectiveArgs = cleanArgs.filter((a) => a !== '--man-pager');
     const filePath = effectiveArgs.find((a) => !a.startsWith('-'));
     let content: string | null = null;
@@ -497,19 +496,12 @@ const less: CommandDefinition = {
     ctx.setLiveMode(true);
     try {
       render();
-      let idleTicks = 0;
       while (!ctx.isInterrupted() && !quit) {
         const key = ctx.readLiveInput();
         if (key === null) {
-          idleTicks++;
-          if (manPagerMode && idleTicks >= 4) {
-            quit = true;
-            continue;
-          }
           await sleep(50);
           continue;
         }
-        idleTicks = 0;
         switch (key) {
           case 'q':
             quit = true;

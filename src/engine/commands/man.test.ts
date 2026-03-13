@@ -13,6 +13,7 @@ function makeCtx(): CommandContext {
     installedPackages: new Set(),
     out: vi.fn(),
     outputMode: 'terminal',
+    getTutorialMode: () => null,
   } as unknown as CommandContext;
 }
 

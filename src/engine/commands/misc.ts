@@ -156,7 +156,7 @@ const man: CommandDefinition = {
     }
     if (resolvedPage === null) resolvedPage = getManPage(topic);
     if (resolvedPage !== null) {
-      if (ctx.outputMode === 'terminal') {
+      if (ctx.outputMode === 'terminal' && ctx.getTutorialMode() === null) {
         const lessCmd = ctx.registry.get('less');
         if (lessCmd) {
           await lessCmd.execute(['--man-pager', `__stdin__:${renderManLines(resolvedPage, ctx).join('\n')}`], ctx);
