@@ -484,9 +484,8 @@ const less: CommandDefinition = {
       for (const l of page) ctx.out(l);
       const end = offset + pageSize >= lines.length;
       const percent = lines.length === 0 ? 100 : Math.min(100, Math.floor(((offset + page.length) / lines.length) * 100));
-      const status = end
-        ? `(END) ${percent}%  [q:quit j/k:line space/b:page g/G:top/bot]`
-        : `:${percent}%  [q:quit j/k:line space/b:page g/G:top/bot]`;
+      // Keep footer closer to native less: concise position/end marker only.
+      const status = end ? '(END)' : `:${percent}%`;
       ctx.rawOut(`\x1b[7m${status}\x1b[0m`);
     };
 
