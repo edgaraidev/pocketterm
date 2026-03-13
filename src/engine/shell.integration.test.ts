@@ -625,6 +625,35 @@ describe('shell package path integration', () => {
     expect(out).not.toContain('\u001b[7m');
   });
 
+  it('supports less search controls in man pager mode', async () => {
+    const outputs: string[] = [];
+    const shell = new Shell(
+      new FileSystem('guest'),
+      new NetworkLogic(),
+      (text) => outputs.push(text),
+      async () => true,
+      async () => null,
+      async () => null,
+      () => {},
+      async () => 'password',
+      () => {},
+      () => {},
+      null,
+    );
+
+    const run = shell.execute('man bash');
+    setTimeout(() => {
+      for (const key of ['/', 'S', 'Y', 'N', 'O', 'P', 'S', 'I', 'S', '\r', 'q']) {
+        shell.pushLiveInput(key);
+      }
+    }, 20);
+    await run;
+
+    const out = outputs.join('');
+    expect(out).toContain('/SYNOPSIS');
+    expect(shell.getLastExitCode()).toBe(0);
+  });
+
   it('keeps command-not-found suggestions deterministic for ties', async () => {
     const outputs: string[] = [];
     const shell = new Shell(

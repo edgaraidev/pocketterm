@@ -477,16 +477,49 @@ const less: CommandDefinition = {
     const pageSize = 24;
     let offset = 0;
     let quit = false;
+    let searchMode = false;
+    let searchBuffer = '';
+    let lastSearch = '';
+    let lastDirection: 1 | -1 = 1;
+    let flashStatus: string | null = null;
+
+    const findMatch = (needle: string, direction: 1 | -1): number | null => {
+      if (!needle) return null;
+      if (direction === 1) {
+        for (let i = offset + 1; i < lines.length; i++) {
+          if (lines[i].includes(needle)) return i;
+        }
+        for (let i = 0; i <= offset && i < lines.length; i++) {
+          if (lines[i].includes(needle)) return i;
+        }
+      } else {
+        for (let i = offset - 1; i >= 0; i--) {
+          if (lines[i].includes(needle)) return i;
+        }
+        for (let i = lines.length - 1; i >= offset && i >= 0; i--) {
+          if (lines[i].includes(needle)) return i;
+        }
+      }
+      return null;
+    };
 
     const render = () => {
       ctx.rawOut('\x1b[2J\x1b[H');
       const page = lines.slice(offset, offset + pageSize);
       for (const l of page) ctx.out(l);
-      const end = offset + pageSize >= lines.length;
-      const percent = lines.length === 0 ? 100 : Math.min(100, Math.floor(((offset + page.length) / lines.length) * 100));
-      // Keep footer closer to native less: concise position/end marker only.
-      const status = end ? '(END)' : `:${percent}%`;
+      let status: string;
+      if (searchMode) {
+        status = `/${searchBuffer}`;
+      } else if (flashStatus) {
+        status = flashStatus;
+      } else {
+        const end = offset + pageSize >= lines.length;
+        const percent = lines.length === 0 ? 100 : Math.min(100, Math.floor(((offset + page.length) / lines.length) * 100));
+        // Keep footer closer to native less: concise position/end marker only.
+        status = end ? '(END)' : `:${percent}%`;
+      }
       ctx.rawOut(`\x1b[7m${status}\x1b[0m`);
+      flashStatus = null;
     };
 
     const maxOffset = () => Math.max(0, lines.length - pageSize);
@@ -501,10 +534,65 @@ const less: CommandDefinition = {
           await sleep(50);
           continue;
         }
+        if (searchMode) {
+          if (key === '\r' || key === '\n') {
+            const found = findMatch(searchBuffer, 1);
+            if (found === null) {
+              flashStatus = `Pattern not found: ${searchBuffer}`;
+            } else {
+              offset = clamp(found);
+              lastSearch = searchBuffer;
+              lastDirection = 1;
+            }
+            searchMode = false;
+            render();
+            continue;
+          }
+          if (key === '\x1b') {
+            searchMode = false;
+            render();
+            continue;
+          }
+          if (key === '\x7f') {
+            searchBuffer = searchBuffer.slice(0, -1);
+            render();
+            continue;
+          }
+          if (key.length === 1 && key >= ' ') {
+            searchBuffer += key;
+            render();
+          }
+          continue;
+        }
         switch (key) {
           case 'q':
             quit = true;
             break;
+          case '/':
+            searchMode = true;
+            searchBuffer = '';
+            render();
+            break;
+          case 'n': {
+            if (!lastSearch) break;
+            const found = findMatch(lastSearch, lastDirection);
+            if (found === null) flashStatus = `Pattern not found: ${lastSearch}`;
+            else offset = clamp(found);
+            render();
+            break;
+          }
+          case 'N': {
+            if (!lastSearch) break;
+            const reverseDirection: 1 | -1 = lastDirection === 1 ? -1 : 1;
+            const found = findMatch(lastSearch, reverseDirection);
+            if (found === null) flashStatus = `Pattern not found: ${lastSearch}`;
+            else {
+              offset = clamp(found);
+              lastDirection = reverseDirection;
+            }
+            render();
+            break;
+          }
           case 'j':
           case '\x1b[B':
             offset = clamp(offset + 1);
@@ -552,11 +640,20 @@ SYNOPSIS
 
 DESCRIPTION
        less is a pager that displays file content one screen at a time.
-       This simulation shows the first page and waits for q/Ctrl+C to exit.
+       This simulation supports line/page movement, quick search, and quit.
 
 EXAMPLES
        less /etc/passwd
        less /var/log/messages
+
+KEYS
+       q      quit
+       j/k    move one line down/up
+       Space  next page
+       b      previous page
+       g/G    jump to start/end
+       /text  search forward for text
+       n/N    next/previous search match
 
 SEE ALSO
        more(1), cat(1), tail(1)`,
