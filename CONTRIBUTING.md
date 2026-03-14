@@ -57,6 +57,14 @@ Before merge:
 - Ensure lint, tests, and build all pass
 - Do not merge with a failing verify gate
 
+### Native Regression Checklist
+
+For changes touching shell/runtime fidelity, run these smoke checks:
+
+- `man bash | cat` remains a clean stream (no interactive pager/status artifacts)
+- `reboot` preserves GRUB access before continuing into boot sequence
+- `help` command list stays aligned when long command names are present
+
 ---
 
 ## UX Ethos
@@ -66,6 +74,7 @@ Before merge:
   - Tutorials
   - Sanctioned manual note sections (for example Yellow Notes in `man`)
 - Do not inject synthetic narration into normal command output paths.
+- Do not add hidden or implicit UI assists outside approved tutorial/manual surfaces.
 
 ---
 
