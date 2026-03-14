@@ -132,8 +132,11 @@ function App() {
   }, []);
 
   const onRebootRequested = useCallback(() => {
+    setGrubSelection(0);
+    setBiosSelection(0);
+    setBiosStatus('');
     setBootOutput([]);
-    setAppState('booting');
+    setAppState('grub');
   }, []);
 
   const onCommandExecuted = useCallback((command: string) => {
