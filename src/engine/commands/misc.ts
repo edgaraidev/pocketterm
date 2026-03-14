@@ -204,10 +204,13 @@ const help: CommandDefinition = {
     ctx.out('PocketTerm - Simulated Rocky Linux 9 Terminal');
     ctx.out('');
     ctx.out(`Available commands (${names.length}):`);
-    const cols = 6;
-    const width = 12;
+    const maxTerminalCols = 80;
+    const maxNameLen = names.reduce((acc, n) => Math.max(acc, n.length), 0);
+    const colWidth = Math.max(12, maxNameLen + 2);
+    const cols = Math.max(1, Math.floor(maxTerminalCols / colWidth));
     for (let i = 0; i < names.length; i += cols) {
-      const row = names.slice(i, i + cols).map((n) => n.padEnd(width)).join('');
+      const chunk = names.slice(i, i + cols);
+      const row = chunk.map((n, idx) => (idx === chunk.length - 1 ? n : n.padEnd(colWidth))).join('');
       ctx.out('  ' + row);
     }
     ctx.out('');
@@ -1149,8 +1152,10 @@ SYNOPSIS
        reboot
 
 DESCRIPTION
-       reboot restarts the system. In this simulation, reboot enters a GRUB
-       menu and boot/login cycle. Root privileges are required.
+       reboot restarts the system. In this simulation, reboot clears the
+       current terminal session and triggers a cold-boot style service startup
+       sequence before automatically logging in as guest. Root privileges are
+       required.
 
 EXAMPLES
        sudo reboot

@@ -3,6 +3,20 @@
 All notable changes to this project are documented in this file.
 
 
+## 0.11.9 - 2026-03-13
+
+### Added
+
+- Added a cold-boot sequence on initial session start with rapid systemd-style `[  OK  ]` startup lines and automatic guest login banner handoff.
+- Added shell command activity marker wiring so warm sessions skip cold boot while explicit `reboot` always re-enters the boot sequence.
+- Added regression coverage for `help` command layout when command names exceed fixed-width column assumptions.
+
+### Changed
+
+- Updated reboot behavior to trigger a direct cold-boot cycle instead of returning to GRUB.
+- Updated `help` command rendering to use dynamic column sizing for long command names (prevents wrapped/misaligned command grids).
+- Refined README "Beyond the Sandbox" language with professional EDU/ENT positioning and pilot-program CTA wording.
+
 ## 0.11.8 - 2026-03-13
 
 ### Added

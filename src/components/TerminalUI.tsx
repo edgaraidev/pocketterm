@@ -23,6 +23,7 @@ interface TerminalUIProps {
   initialUser?: string;
   onRebootRequested?: () => void;
   onFactoryResetRequested?: () => void;
+  onCommandExecuted?: (command: string) => void;
   preludeLines?: string[];
   initialTutorialMode?: TutorialCartridge | null;
 }
@@ -31,6 +32,7 @@ export function TerminalUI({
   initialUser = 'guest',
   onRebootRequested,
   onFactoryResetRequested,
+  onCommandExecuted,
   preludeLines = [],
   initialTutorialMode = null,
 }: TerminalUIProps) {
@@ -461,6 +463,7 @@ export function TerminalUI({
         currentLineRef.current = '';
         cursorIndexRef.current = 0;
         await shell.execute(line);
+        onCommandExecuted?.(line);
 
         if (!shell.isPanicked()) {
           cwdRef.current = shell.getCwd();
@@ -501,7 +504,7 @@ export function TerminalUI({
       fitAddonRef.current = null;
       shellRef.current = null;
     };
-  }, [initialUser, onOutput, onConfirm, onOpenEditor, onOpenVimEditor, onKernelPanic, onPasswordPrompt, onRebootRequested, onFactoryResetRequested, preludeLines, initialTutorialMode]);
+  }, [initialUser, onOutput, onConfirm, onOpenEditor, onOpenVimEditor, onKernelPanic, onPasswordPrompt, onRebootRequested, onFactoryResetRequested, onCommandExecuted, preludeLines, initialTutorialMode]);
 
   const handleEditorSave = useCallback((content: string) => {
     if (resolveEditorRef.current) {

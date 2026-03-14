@@ -67,6 +67,28 @@ describe('help onboarding hook', () => {
 
     expect(out).toHaveBeenCalledWith("Use 'man pocketterm' for system documentation or run 'pocketterm' to launch the interactive environment manager.");
   });
+
+  it('falls back to single-column command listing for very long names', async () => {
+    const out = vi.fn();
+    const stubCommand = { name: 'stub', execute: async () => {}, man: '' };
+    const veryLong = 'systemd-this-command-name-is-intentionally-very-very-long-for-help-layout';
+    const ctx = {
+      registry: new Map([
+        [veryLong, stubCommand],
+        ['help', helpCmd],
+        ['man', stubCommand],
+        ['ls', stubCommand],
+      ]),
+      out,
+      outputMode: 'pipe',
+    } as unknown as CommandContext;
+
+    await helpCmd.execute([], ctx);
+
+    const lines = (out.mock.calls as unknown[][]).map((call) => String(call[0]));
+    expect(lines.some((line) => line === `  ${veryLong}`)).toBe(true);
+    expect(lines.some((line) => line === '  ls')).toBe(true);
+  });
 });
 
 describe('reboot privilege behavior', () => {

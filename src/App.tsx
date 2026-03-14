@@ -7,25 +7,40 @@ import { loadTutorialFromSearch, type TutorialCartridge } from './engine/tutoria
 
 type AppState = 'shell' | 'grub' | 'bios' | 'booting' | 'login';
 
+const COMMAND_HISTORY_MARKER_KEY = 'pocketterm-has-command-history';
+
 const BOOT_LINES: string[] = [
-  '[  OK  ] Started udev Coldplug all Devices.',
-  '[  OK  ] Started Journal Service.',
-  '[  OK  ] Reached target Local File Systems.',
-  '[  OK  ] Starting Network Manager...',
-  '[  OK  ] Started Network Manager.',
-  '[  OK  ] Starting firewalld - dynamic firewall daemon...',
-  '[  OK  ] Started firewalld - dynamic firewall daemon.',
-  '[  OK  ] Starting OpenSSH server daemon...',
-  '[  OK  ] Started OpenSSH server daemon.',
+  '[  OK  ] Started systemd-journald.service - Journal Service.',
+  '[  OK  ] Started systemd-udevd.service - Rule-based Manager for Device Events and Files.',
+  '[  OK  ] Reached target local-fs-pre.target - Preparation for Local File Systems.',
+  '[  OK  ] Mounted sys-kernel-debug.mount - Kernel Debug File System.',
+  '[  OK  ] Mounted dev-hugepages.mount - Huge Pages File System.',
+  '[  OK  ] Mounted dev-mqueue.mount - POSIX Message Queue File System.',
+  '[  OK  ] Mounted tmp.mount - Temporary Directory /tmp.',
+  '[  OK  ] Reached target local-fs.target - Local File Systems.',
+  '[  OK  ] Started NetworkManager.service - Network Manager.',
+  '[  OK  ] Started firewalld.service - firewalld - dynamic firewall daemon.',
+  '[  OK  ] Started systemd-resolved.service - Network Name Resolution.',
+  '[  OK  ] Started dbus-broker.service - D-Bus System Message Bus.',
+  '[  OK  ] Started polkit.service - Authorization Manager.',
+  '[  OK  ] Started systemd-logind.service - User Login Management.',
   '[  OK  ] Started crond.service - Command Scheduler.',
+  '[  OK  ] Started sshd.service - OpenSSH server daemon.',
+  '[  OK  ] Started rsyslog.service - System Logging Service.',
+  '[  OK  ] Started tuned.service - Dynamic System Tuning Daemon.',
+  '[  OK  ] Started chronyd.service - NTP client/server.',
+  '[  OK  ] Started auditd.service - Security Auditing Service.',
+  '[  OK  ] Started getty@tty1.service - Getty on tty1.',
+  '[  OK  ] Started systemd-user-sessions.service - Permit User Sessions.',
+  '[  OK  ] Reached target remote-fs.target - Remote File Systems.',
+  '[  OK  ] Reached target nss-user-lookup.target - User and Group Name Lookups.',
+  '[  OK  ] Reached target time-sync.target - System Time Synchronized.',
+  '[  OK  ] Reached target multi-user.target - Multi-User System.',
+  '[  OK  ] Started systemd-update-utmp.service - Record System Boot/Shutdown in UTMP.',
+  '[  OK  ] Started packagekit.service - PackageKit Daemon.',
+  '[  OK  ] Started dnf-makecache.timer - dnf makecache.',
   '[  OK  ] Mounted /boot/efi.',
-  '[  OK  ] Started Login Service.',
-  '[  OK  ] Reached target Multi-User System.',
-  '[  OK  ] Started GNOME Keyring daemon.',
-  '[  OK  ] Started D-Bus System Message Bus.',
-  '[  OK  ] Started Authorization Manager.',
-  '[  OK  ] Started Hostname Service.',
-  '[  OK  ] Started Rocky Linux 9 boot sequence.',
+  '[  OK  ] Started PocketTerm cold boot sequence.',
 ];
 
 function userExists(username: string): boolean {
@@ -59,7 +74,14 @@ function buildLoginPrelude(): string[] {
 }
 
 function App() {
-  const [appState, setAppState] = useState<AppState>('shell');
+  const [appState, setAppState] = useState<AppState>(() => {
+    try {
+      const hasHistory = localStorage.getItem(COMMAND_HISTORY_MARKER_KEY) === '1';
+      return hasHistory ? 'shell' : 'booting';
+    } catch {
+      return 'booting';
+    }
+  });
   const [terminalSessionKey, setTerminalSessionKey] = useState(0);
   const [sessionUser, setSessionUser] = useState('guest');
   const [shellPreludeLines, setShellPreludeLines] = useState<string[]>([]);
@@ -80,29 +102,26 @@ function App() {
   const screenRef = useRef<HTMLDivElement>(null);
   const bootCancelledRef = useRef(false);
 
-  const startShell = useCallback((username: string) => {
+  const startShell = useCallback((username: string, preludeLines: string[] = []) => {
     setSessionUser(username);
-    setShellPreludeLines(buildLoginPrelude());
+    setShellPreludeLines(preludeLines);
     setTerminalSessionKey((k) => k + 1);
     setAppState('shell');
   }, []);
 
-  const resetLoginScreen = useCallback(() => {
-    setLoginStage('username');
-    setLoginBuffer('');
-    setPasswordBuffer('');
-    setPendingUsername('');
-    setLoginMessages([]);
+  const onRebootRequested = useCallback(() => {
+    setBootOutput([]);
+    setAppState('booting');
   }, []);
 
-  const onRebootRequested = useCallback(() => {
-    setGrubSelection(0);
-    setBiosSelection(0);
-    setBiosStatus('');
-    setBootOutput([]);
-    resetLoginScreen();
-    setAppState('grub');
-  }, [resetLoginScreen]);
+  const onCommandExecuted = useCallback((command: string) => {
+    if (!command.trim()) return;
+    try {
+      localStorage.setItem(COMMAND_HISTORY_MARKER_KEY, '1');
+    } catch {
+      // Ignore storage failures (private mode, quota).
+    }
+  }, []);
 
   const onFactoryResetRequested = useCallback(() => {
     clearPocketTermStorage();
@@ -118,20 +137,27 @@ function App() {
       for (const line of BOOT_LINES) {
         if (cancelled || bootCancelledRef.current) return;
         setBootOutput((prev) => [...prev, line]);
-        const delay = 50 + Math.floor(Math.random() * 100);
-        await new Promise<void>((resolve) => setTimeout(resolve, delay));
+        await new Promise<void>((resolve) => setTimeout(resolve, 55));
       }
-      await new Promise<void>((resolve) => setTimeout(resolve, 250));
+      await new Promise<void>((resolve) => setTimeout(resolve, 140));
       if (cancelled || bootCancelledRef.current) return;
-      resetLoginScreen();
-      setAppState('login');
+      const prelude = [
+        ...BOOT_LINES,
+        '',
+        'PocketTerm v0.11.8 (Rocky Linux 9 Hybrid)',
+        'Kernel 6.1.0-pocket-vfs on an x86_64',
+        '',
+        'pocketterm login: guest (automatic login)',
+        ...buildLoginPrelude(),
+      ];
+      startShell('guest', prelude);
     };
 
     void runBoot();
     return () => {
       cancelled = true;
     };
-  }, [appState, resetLoginScreen]);
+  }, [appState, startShell]);
 
   useEffect(() => {
     if (appState !== 'grub' && appState !== 'bios' && appState !== 'login' && appState !== 'booting') return;
@@ -333,6 +359,7 @@ function App() {
           initialUser={sessionUser}
           onRebootRequested={onRebootRequested}
           onFactoryResetRequested={onFactoryResetRequested}
+          onCommandExecuted={onCommandExecuted}
           preludeLines={shellPreludeLines}
           initialTutorialMode={initialTutorialMode}
         />

@@ -169,21 +169,21 @@ Notes:
 
 PocketTerm now supports two aligned tracks while preserving authentic CLI behavior:
 
-### 🎓 EDU Track (Training Cartridges)
+### 🎓 Interactive Learning & Academic Labs
 
-- Guided **Cartridges** provide scenario-based progression without replacing normal shell workflows.
+- Guided **Cartridges** provide a zero-infrastructure teaching path for instructors who need lab-ready shell scenarios without VM setup.
 - Tutorials are the intended place to break the fourth wall with direct instructional language.
 - Yellow-note guidance remains visible inside docs where learners naturally look (`man` + tutorial surfaces).
 
-### 🏢 ENT Track (Operational Enablement)
+### 🏢 Technical Narrative & Professional Simulation
 
-- Teams can use PocketTerm for realistic command rehearsal with persistent state and stable command contracts.
+- Teams can use PocketTerm for technical onboarding, realistic command rehearsal, and technical storytelling with persistent state and stable command contracts.
 - Pager flow, search controls (`/`, `?`, `n`, `N`), and shell ergonomics stay terminal-native for muscle-memory transfer.
 - "Yellow-Note" docs create a safe ramp for new operators while keeping production-like command UX.
 
-### 📬 Inquire
+### 📬 Inquire: Partnering for Pilot Programs
 
-> Interested in EDU cohorts, internal enablement labs, or enterprise customization?
+> Interested in partnering on pilot programs for classrooms, onboarding cohorts, or simulation-led technical enablement?
 > Reach out via [LinkedIn](https://www.linkedin.com/in/edgar-furse-7643b3ba/) or [Buy Me a Coffee](https://www.buymeacoffee.com/edgar.ai.dev) to start a conversation.
 
 ---
