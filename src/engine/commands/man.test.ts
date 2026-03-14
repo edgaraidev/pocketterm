@@ -101,6 +101,15 @@ describe('man command', () => {
     expect(ctx.out).toHaveBeenCalledWith(expect.stringContaining('LYNX(1)'));
   });
 
+  it('includes expanded external man page for sh learning recipes', async () => {
+    const ctx = makeCtx();
+
+    await manCmd.execute(['sh'], ctx);
+
+    expect(ctx.out).toHaveBeenCalledWith(expect.stringContaining('SH(1)'));
+    expect(ctx.out).toHaveBeenCalledWith(expect.stringContaining('LEARNING RECIPES'));
+  });
+
   it('shows less cheatsheet keys in yellow note styling', async () => {
     const ctx = makeCtx();
     ctx.getTutorialMode = () => ({ id: 'test' } as unknown as never);

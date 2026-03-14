@@ -378,6 +378,8 @@ export class Shell {
     this.envVars = new Map<string, string>([
       ['PATH', '/usr/bin:/bin:/usr/local/bin'],
       ['SHELL', '/usr/bin/bash'],
+      ['EDITOR', 'vi'],
+      ['VISUAL', 'vi'],
       ['LANG', 'en_US.UTF-8'],
       ['TERM', 'xterm-256color'],
     ]);

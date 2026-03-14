@@ -96,6 +96,11 @@ describe('shell package path integration', () => {
     expect(envOut).toContain('/home/guest guest /usr/bin/bash /usr/bin:/bin:/usr/local/bin');
 
     start = outputs.length;
+    await shell.execute('echo $EDITOR $VISUAL');
+    const editorEnvOut = outputs.slice(start).join('');
+    expect(editorEnvOut).toContain('vi vi');
+
+    start = outputs.length;
     await shell.execute('ll');
     const llOut = outputs.slice(start).join('');
     expect(llOut).toContain('.bashrc');
