@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file.
 
 
+## 0.12.1 - 2026-03-13
+
+### Changed
+
+- Standardized package-availability manual note rendering for package-gated and stub-style utilities with a consistent 57-character note block and command-specific install guidance.
+- Preserved Native-vs-Synthetic man behavior by keeping source manual text ANSI-free and applying yellow note styling only in terminal rendering mode.
+
+### Added
+
+- Added regression coverage for package-note visibility in interactive `man` paging and plain-text fidelity for `man tmux | cat` pipeline output.
+
 ## 0.12.0 - 2026-03-13
 
 ### Added

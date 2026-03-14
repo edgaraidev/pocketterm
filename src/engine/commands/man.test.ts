@@ -151,4 +151,22 @@ CHEATSHEET
 
     expect(lessExecute).not.toHaveBeenCalled();
   });
+
+  it('appends standardized package availability block for package-gated commands', async () => {
+    const ctx = makeCtx();
+    ctx.registry.set('tmux', {
+      name: 'tmux',
+      requiresPackage: 'tmux',
+      execute: async () => {},
+      man: 'TMUX(1)\n\nNAME\n       tmux - terminal multiplexer',
+    });
+
+    await manCmd.execute(['tmux'], ctx);
+
+    const calls = (ctx.out as unknown as { mock: { calls: unknown[][] } }).mock.calls
+      .map((c) => String(c[0]));
+    expect(calls.some((line) => line.includes('\u001b[33mPOCKETTERM NOTE\u001b[0m'))).toBe(true);
+    expect(calls.some((line) => line.includes("Run 'dnf install tmux' to add it to your environment."))).toBe(true);
+    expect(calls.some((line) => line.includes('---------------------------------------------------------'))).toBe(true);
+  });
 });

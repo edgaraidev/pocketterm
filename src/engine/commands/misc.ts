@@ -6,6 +6,30 @@ import { exportSystemState, importSystemState } from '../storage';
 import { getManPage } from '../manPages';
 import externalManPagesRaw from '../man-pages.json?raw';
 
+const PACKAGE_NOTE_RULE = '-'.repeat(57);
+
+function buildPackageAvailabilityBlock(command: string): string {
+  return `POCKETTERM NOTE
+       ${PACKAGE_NOTE_RULE}
+       POCKETTERM NOTE: This utility is not part of the core image.
+       It is available via the 'AppStream' repository.
+       Run 'dnf install ${command}' to add it to your environment.
+       ${PACKAGE_NOTE_RULE}`;
+}
+
+function normalizeLegacyStubNote(page: string): string {
+  return page.replace(/\nPOCKETTERM NOTE\n\s+Note:[^\n]*(?:\n)?/g, '\n');
+}
+
+function ensurePackageAvailabilityNote(page: string, command: string, shouldAttach: boolean): string {
+  const normalized = normalizeLegacyStubNote(page)
+    .replace(/Run 'dnf install \[command\]'/g, `Run 'dnf install ${command}'`);
+  if (!shouldAttach) return normalized;
+  if (normalized.includes(`Run 'dnf install ${command}'`) && normalized.includes("AppStream")) return normalized;
+  const trimmed = normalized.trimEnd();
+  return `${trimmed}\n\n${buildPackageAvailabilityBlock(command)}`;
+}
+
 const EXTERNAL_MAN_PAGES: Record<string, string> = (() => {
   try {
     const parsed = JSON.parse(externalManPagesRaw) as unknown;
@@ -145,6 +169,7 @@ const man: CommandDefinition = {
     }
     const topic = topicArg.toLowerCase();
     if (!topic) { ctx.out('What manual page do you want?'); return; }
+    const cmd = ctx.registry.get(topic);
 
     let resolvedPage: string | null = null;
     const fsManPath = `/usr/share/man/man1/${topic}.1`;
@@ -152,11 +177,13 @@ const man: CommandDefinition = {
     if (fsManPage !== null) resolvedPage = fsManPage;
     if (resolvedPage === null) resolvedPage = EXTERNAL_MAN_PAGES[topic] ?? null;
     if (resolvedPage === null) {
-      const cmd = ctx.registry.get(topic);
       if (cmd && cmd.man) resolvedPage = cmd.man;
     }
     if (resolvedPage === null) resolvedPage = getManPage(topic);
     if (resolvedPage !== null) {
+      const isStubPage = /PocketTerm stub utility/i.test(resolvedPage);
+      const shouldAttach = Boolean(cmd?.requiresPackage) || isStubPage;
+      resolvedPage = ensurePackageAvailabilityNote(resolvedPage, topic, shouldAttach);
       if (ctx.outputMode === 'terminal' && ctx.getTutorialMode() === null) {
         const lessCmd = ctx.registry.get('less');
         if (lessCmd) {

@@ -627,6 +627,29 @@ describe('shell package path integration', () => {
     expect(out).not.toMatch(/bash\(1\) lines \d+-\d+\/\d+/);
   });
 
+  it('keeps package-note man output clean in pipelines', async () => {
+    const outputs: string[] = [];
+    const shell = new Shell(
+      new FileSystem('guest'),
+      new NetworkLogic(),
+      (text) => outputs.push(text),
+      async () => true,
+      async () => null,
+      async () => null,
+      () => {},
+      async () => 'password',
+      () => {},
+      () => {},
+      null,
+    );
+
+    await shell.execute('man tmux | cat');
+    const out = outputs.join('');
+    expect(out).toContain("Run 'dnf install tmux' to add it to your environment.");
+    expect(out).not.toContain('\u001b[');
+    expect(out).not.toContain('tmux(1) (END)');
+  });
+
   it('supports less search controls in man pager mode', async () => {
     const outputs: string[] = [];
     const shell = new Shell(
@@ -682,6 +705,35 @@ describe('shell package path integration', () => {
 
     const out = outputs.join('');
     expect(out).toContain('?DESCRIPTION');
+    expect(shell.getLastExitCode()).toBe(0);
+  });
+
+  it('supports searching the package note in interactive man pager mode', async () => {
+    const outputs: string[] = [];
+    const shell = new Shell(
+      new FileSystem('guest'),
+      new NetworkLogic(),
+      (text) => outputs.push(text),
+      async () => true,
+      async () => null,
+      async () => null,
+      () => {},
+      async () => 'password',
+      () => {},
+      () => {},
+      null,
+    );
+
+    const run = shell.execute('man tmux');
+    setTimeout(() => {
+      for (const key of ['/', 'P', 'O', 'C', 'K', 'E', 'T', 'T', 'E', 'R', 'M', ' ', 'N', 'O', 'T', 'E', '\r', 'n', 'N', 'q']) {
+        shell.pushLiveInput(key);
+      }
+    }, 20);
+    await run;
+
+    const out = outputs.join('');
+    expect(out).toContain('/POCKETTERM NOTE');
     expect(shell.getLastExitCode()).toBe(0);
   });
 
