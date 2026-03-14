@@ -53,11 +53,8 @@ function userExists(username: string): boolean {
     .includes(username);
 }
 
-function buildLoginPrelude(): string[] {
-  const fs = new FileSystem('guest');
-  const motd = fs.readFile('/etc/motd', 'root') ?? 'Welcome to Rocky Linux 9.3 (Blue Onyx).';
-  const now = new Date();
-  const lastLogin = now.toLocaleString('en-US', {
+function formatLastLoginTimestamp(now: Date): string {
+  return now.toLocaleString('en-US', {
     weekday: 'short',
     month: 'short',
     day: '2-digit',
@@ -66,9 +63,34 @@ function buildLoginPrelude(): string[] {
     second: '2-digit',
     hour12: false,
   }).replace(',', '');
+}
+
+function centerText(text: string, width: number): string {
+  if (text.length >= width) return text.slice(0, width);
+  const totalPadding = width - text.length;
+  const left = Math.floor(totalPadding / 2);
+  const right = totalPadding - left;
+  return `${' '.repeat(left)}${text}${' '.repeat(right)}`;
+}
+
+function buildLoginPrelude(): string[] {
+  const blockWidth = 57; // Keep <= 60 chars for narrow mobile viewports.
+  const sep = '-'.repeat(blockWidth);
+  const heading = centerText('Welcome to PocketTerm v0.12.0 (Rocky Linux 9.4 Hybrid)', blockWidth);
+  const now = new Date();
+  const lastLogin = formatLastLoginTimestamp(now);
   return [
+    sep,
+    heading,
+    '',
+    "* Documentation: Type 'man bash' for a shell guide.",
+    "* Help: Type 'help' for available utilities.",
+    "* Tips: Look for YELLOW NOTES in manuals for sim insights.",
+    '',
+    'System state: STABLE | Storage: VFS (Browser Local)',
+    sep,
+    '',
     `Last login: ${lastLogin} on tty1`,
-    ...motd.split('\n').filter(Boolean).map((line) => line.trim()),
     '',
   ];
 }
@@ -142,9 +164,7 @@ function App() {
       await new Promise<void>((resolve) => setTimeout(resolve, 140));
       if (cancelled || bootCancelledRef.current) return;
       const prelude = [
-        ...BOOT_LINES,
-        '',
-        'PocketTerm v0.11.8 (Rocky Linux 9 Hybrid)',
+        'PocketTerm v0.12.0 (Rocky Linux 9.4 Hybrid)',
         'Kernel 6.1.0-pocket-vfs on an x86_64',
         '',
         'pocketterm login: guest (automatic login)',

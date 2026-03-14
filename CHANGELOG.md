@@ -3,6 +3,18 @@
 All notable changes to this project are documented in this file.
 
 
+## 0.12.0 - 2026-03-13
+
+### Added
+
+- Added launch-candidate cold-boot handoff flow with timed systemd-style startup messages, canonical kernel banner, automatic guest login marker, and structured MOTD block.
+- Added runtime-formatted `Last login: ... on tty1` pre-prompt output for each cold boot/reboot cycle.
+
+### Changed
+
+- Updated reboot sequence sync so explicit `reboot` always replays the full boot-to-prompt startup contract.
+- Preserved warm-session fast entry by skipping cold boot when command-history marker indicates an existing active session.
+
 ## 0.11.9 - 2026-03-13
 
 ### Added
