@@ -178,4 +178,13 @@ CHEATSHEET
     expect(calls.some((line) => line.includes("Run 'dnf install tmux' to add it to your environment."))).toBe(true);
     expect(calls.some((line) => line.includes('---------------------------------------------------------'))).toBe(true);
   });
+
+  it('does not append package availability block for core commands', async () => {
+    const ctx = makeCtx();
+    await manCmd.execute(['bash'], ctx);
+    const calls = (ctx.out as unknown as { mock: { calls: unknown[][] } }).mock.calls
+      .map((c) => String(c[0]));
+    expect(calls.some((line) => line.includes("Run 'dnf install bash'"))).toBe(false);
+    expect(calls.some((line) => line.includes("not included in the 'Minimal'"))).toBe(false);
+  });
 });

@@ -4,10 +4,12 @@ import { FileSystem } from './engine/fileSystem';
 import { loadHardwareState, persistHardwareState, type HardwareState } from './engine/hardwareState';
 import { clearPocketTermStorage } from './engine/storage';
 import { loadTutorialFromSearch, type TutorialCartridge } from './engine/tutorials';
+import { buildBootPreludeLines, formatLastLoginTimestamp } from './bootPrelude';
 
 type AppState = 'shell' | 'grub' | 'bios' | 'booting' | 'login';
 
 const COMMAND_HISTORY_MARKER_KEY = 'pocketterm-has-command-history';
+const LAST_LOGIN_KEY = 'pocketterm-last-login';
 
 const BOOT_LINES: string[] = [
   '[  OK  ] Started systemd-journald.service - Journal Service.',
@@ -53,46 +55,31 @@ function userExists(username: string): boolean {
     .includes(username);
 }
 
-function formatLastLoginTimestamp(now: Date): string {
-  return now.toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).replace(',', '');
+function loadLastLoginTimestamp(now: Date): string {
+  const fallback = formatLastLoginTimestamp(now);
+  try {
+    const raw = localStorage.getItem(LAST_LOGIN_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as { timestamp?: string; user?: string; tty?: string };
+    if (!parsed || typeof parsed !== 'object') return fallback;
+    if (typeof parsed.timestamp !== 'string' || !parsed.timestamp.trim()) return fallback;
+    return parsed.timestamp;
+  } catch {
+    return fallback;
+  }
 }
 
-function centerText(text: string, width: number): string {
-  if (text.length >= width) return text.slice(0, width);
-  const totalPadding = width - text.length;
-  const left = Math.floor(totalPadding / 2);
-  const right = totalPadding - left;
-  return `${' '.repeat(left)}${text}${' '.repeat(right)}`;
-}
-
-function buildLoginPrelude(): string[] {
-  const blockWidth = 57; // Keep <= 60 chars for narrow mobile viewports.
-  const sep = '-'.repeat(blockWidth);
-  const heading = centerText('Welcome to PocketTerm v0.12.0 (Rocky Linux 9.4 Hybrid)', blockWidth);
-  const now = new Date();
-  const lastLogin = formatLastLoginTimestamp(now);
-  return [
-    sep,
-    heading,
-    '',
-    "* Documentation: Type 'man bash' for a shell guide.",
-    "* Help: Type 'help' for available utilities.",
-    "* Tips: Look for YELLOW NOTES in manuals for sim insights.",
-    '',
-    'System state: STABLE | Storage: VFS (Browser Local)',
-    sep,
-    '',
-    `Last login: ${lastLogin} on tty1`,
-    '',
-  ];
+function persistCurrentLogin(now: Date): void {
+  const payload = {
+    timestamp: formatLastLoginTimestamp(now),
+    user: 'guest',
+    tty: 'tty1',
+  };
+  try {
+    localStorage.setItem(LAST_LOGIN_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore storage failures (private mode, quota).
+  }
 }
 
 function App() {
@@ -166,13 +153,10 @@ function App() {
       }
       await new Promise<void>((resolve) => setTimeout(resolve, 140));
       if (cancelled || bootCancelledRef.current) return;
-      const prelude = [
-        'PocketTerm v0.12.0 (Rocky Linux 9.4 Hybrid)',
-        'Kernel 6.1.0-pocket-vfs on an x86_64',
-        '',
-        'pocketterm login: guest (automatic login)',
-        ...buildLoginPrelude(),
-      ];
+      const now = new Date();
+      const lastLogin = loadLastLoginTimestamp(now);
+      const prelude = buildBootPreludeLines(lastLogin);
+      persistCurrentLogin(now);
       startShell('guest', prelude);
     };
 

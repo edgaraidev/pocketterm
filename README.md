@@ -116,7 +116,7 @@ Notes:
 
 ---
 
-## Fidelity Notes (0.12.1)
+## Fidelity Notes (0.12.2)
 
 - `curl` reports realistic error families (`(22)`, `(23)`, `(28)`, `(47)`, `(7)`).
 - `cd -` uses `$OLDPWD` and prints the destination path.
@@ -148,6 +148,7 @@ Notes:
 - Prompt hostname is normalized to `pocketterm` for consistent workstation-style PS1 formatting.
 - Cold-start sessions now run a timed systemd-style boot sequence and structured startup MOTD before interactive prompt handoff.
 - Package-gated/stub manual pages now use a standardized 57-character `POCKETTERM NOTE` install block (`dnf install <command>`) with yellow terminal rendering and plain-text pipeline output.
+- Last-login startup messaging now persists prior successful login metadata across cold boots for more realistic shell session continuity.
 
 ### Intentional Simulator Contracts
 

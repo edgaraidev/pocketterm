@@ -3,6 +3,18 @@
 All notable changes to this project are documented in this file.
 
 
+## 0.12.2 - 2026-03-13
+
+### Added
+
+- Added startup-order regression coverage for the boot prelude contract (`banner -> auto-login -> MOTD -> last login`).
+- Added man regression guard to ensure package-availability notes do not leak into core command manuals.
+
+### Changed
+
+- Persisted and reused last successful login metadata across cold-boot cycles for more authentic `Last login` fidelity.
+- Updated boot/MOTD prelude version strings to `v0.12.2`.
+
 ## 0.12.1 - 2026-03-13
 
 ### Changed
